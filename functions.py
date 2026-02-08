@@ -1,32 +1,31 @@
 import pandas as pd
 import numpy as np
 
-def get_clean_correlation(df: pd.DataFrame, country_name: str) -> float | None:
+
+def apply_correlation_to_df(df: pd.DataFrame) -> pd.Series:
     """
-    Calculate the correlation between GDP per capita and CO2 per capita for a given country.
+    Calculate the correlation between GDP per capita and CO2 per capita for each country
+    and return a Series that can be assigned to a column.
 
     Args:
         df (pd.DataFrame): DataFrame with columns 'country', 'gdp_per_capita', and 'co2_per_capita'
-        country_name (str): Name of the country to calculate the correlation for
 
     Returns:
-        float | None: Correlation coefficient if there are enough data points, None otherwise
+        pd.Series: A Series with correlation values for each row based on its country
     """
-
-    # Select the data for the country 
-    data = df[df['country'] == country_name].copy()
-
-    subset = data[['gdp_per_capita', 'co2_per_capita']].dropna()
-
-    # Check if there are enough data points
-    if len(subset) < 5:
-        # return None if there are not enough data points
-        return None
-
-    # Calculate the correlation
-    corr_matrix = np.corrcoef(subset['gdp_per_capita'], subset['co2_per_capita'])
-
-    return corr_matrix[0, 1]
+    # Calculate correlation per country using groupby + transform
+    def calc_corr(group):
+        subset = group[['gdp_per_capita', 'co2_per_capita']].dropna()
+        if len(subset) < 5:
+            return None
+        corr_matrix = np.corrcoef(subset['gdp_per_capita'], subset['co2_per_capita'])
+        return corr_matrix[0, 1]
+    
+    # Get unique country correlations
+    country_correlations = df.groupby('country').apply(calc_corr)
+    
+    # Map back to original DataFrame index
+    return df['country'].map(country_correlations)
 
 
 def normalize_column(df: pd.DataFrame, column_name: str) -> pd.DataFrame:
