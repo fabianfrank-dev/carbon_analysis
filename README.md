@@ -59,7 +59,7 @@ carbon_analysis/
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/fabianfrank-ai/carbon_analysis
 cd carbon_analysis
 
 # Create and activate a virtual environment
