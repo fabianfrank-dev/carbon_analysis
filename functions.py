@@ -53,5 +53,17 @@ def get_income_group(df: pd.DataFrame, country_name: str) -> str:
         str: Income group of the country
     """
 
-    
+
+def z_score_column(df: pd.DataFrame, column_name: str) -> pd.DataFrame:
+    """
+    Calculate the z-score of a column in a DataFrame.
+
+    Args:
+        df (pd.DataFrame): DataFrame with the column to calculate the z-score for
+        column_name (str): Name of the column to calculate the z-score for
+
+    Returns:
+        pd.DataFrame: DataFrame with the z-score of the column
+    """
+    return (df[column_name] - df[column_name].mean()) / df[column_name].std()
     
