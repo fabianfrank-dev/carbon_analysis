@@ -16,19 +16,20 @@ def apply_correlation_to_df(df: pd.DataFrame) -> pd.Series:
     Returns:
         pd.Series: A Series with correlation values for each row based on its country
     """
+
     # Calculate correlation per country using groupby + transform
     def calc_corr(group):
-        subset = group[['gdp_per_capita', 'co2_per_capita']].dropna()
+        subset = group[["gdp_per_capita", "co2_per_capita"]].dropna()
         if len(subset) < 5:
             return None
-        corr_matrix = np.corrcoef(subset['gdp_per_capita'], subset['co2_per_capita'])
+        corr_matrix = np.corrcoef(subset["gdp_per_capita"], subset["co2_per_capita"])
         return corr_matrix[0, 1]
 
     # Get unique country correlations
-    country_correlations = df.groupby('country').apply(calc_corr)
+    country_correlations = df.groupby("country").apply(calc_corr)
 
     # Map back to original DataFrame index
-    return df['country'].map(country_correlations)
+    return df["country"].map(country_correlations)
 
 
 def normalize_column(df: pd.DataFrame, column_name: str) -> pd.DataFrame:
@@ -93,16 +94,24 @@ def classify_income_group(series: pd.Series) -> pd.Categorical:
     Returns:
         pd.Categorical: Categorical Series with income group labels.
     """
-    bins = [0, 1145, 4515, 14005, np.inf]
-    labels = ['Low', 'Lower-Middle', 'Upper-Middle', 'High']
-    return pd.cut(series, bins=bins, labels=labels)
+    # classify countries using World Bank thresholds with numpy vectorized logic
+    gdp_pc = series.values
+
+    conditions = [
+        gdp_pc < 1_145,
+        (gdp_pc >= 1_145) & (gdp_pc < 4_516),
+        (gdp_pc >= 4_516) & (gdp_pc < 14_005),
+        gdp_pc >= 14_005,
+    ]
+    choices = ["Low", "Lower-Middle", "Upper-Middle", "High"]
+
+    return np.select(conditions, choices, default="Unknown")
+
+
 
 
 def get_top_bottom_n(
-    df: pd.DataFrame,
-    metric_col: str,
-    n: int = 15,
-    ascending: bool = True
+    df: pd.DataFrame, metric_col: str, n: int = 15, ascending: bool = True
 ) -> pd.DataFrame:
     """
     Return the top or bottom N rows of a DataFrame ranked by a metric column.
@@ -123,9 +132,7 @@ def get_top_bottom_n(
 
 
 def compute_energy_mix_shares(
-    df: pd.DataFrame,
-    green_cols: list,
-    non_green_cols: list
+    df: pd.DataFrame, green_cols: list, non_green_cols: list
 ) -> pd.DataFrame:
     """
     Compute green and non-green electricity share columns for each row.
@@ -143,8 +150,8 @@ def compute_energy_mix_shares(
     total = green_total + non_green_total
 
     df = df.copy()
-    df['green_share'] = safe_divide(green_total.values, total.values)
-    df['non_green_share'] = safe_divide(non_green_total.values, total.values)
+    df["green_share"] = safe_divide(green_total.values, total.values)
+    df["non_green_share"] = safe_divide(non_green_total.values, total.values)
     return df
 
 
@@ -156,7 +163,7 @@ def plot_dual_axis_timeseries(
     y1_label: str,
     y2_label: str,
     title: str = None,
-    correlation_value: float = None
+    correlation_value: float = None,
 ) -> None:
     """
     Plot a dual-axis time series chart with optional Pearson r annotation.
@@ -175,17 +182,19 @@ def plot_dual_axis_timeseries(
     ax1.plot(df[x_col], df[y1_col], label=y1_label)
     ax1.set_xlabel(x_col.capitalize())
     ax1.set_ylabel(y1_label)
-    ax1.legend(loc='upper left')
+    ax1.legend(loc="upper left")
 
     ax2 = ax1.twinx()
-    ax2.plot(df[x_col], df[y2_col], label=y2_label, color='orange')
+    ax2.plot(df[x_col], df[y2_col], label=y2_label, color="orange")
     ax2.set_ylabel(y2_label)
-    ax2.legend(loc='upper right')
+    ax2.legend(loc="upper right")
 
     if correlation_value is not None:
         ax1.annotate(
-            f'Pearson r: {correlation_value:.2f}',
-            xy=(0.4, 0.93), xycoords='axes fraction', fontsize=12
+            f"Pearson r: {correlation_value:.2f}",
+            xy=(0.4, 0.93),
+            xycoords="axes fraction",
+            fontsize=12,
         )
 
     valid_rows = df.dropna(subset=[y1_col, y2_col])
@@ -194,7 +203,7 @@ def plot_dual_axis_timeseries(
         max_x = valid_rows[x_col].max()
         ax1.set_xlim(min_x, max_x)
         if title is None:
-            title = f'{y1_label} vs {y2_label}, {min_x}-{max_x}'
+            title = f"{y1_label} vs {y2_label}, {min_x}-{max_x}"
 
     if title:
         plt.title(title)
@@ -208,7 +217,7 @@ def run_kmeans_elbow(
     k_range: range = range(1, 8),
     n_clusters: int = None,
     random_state: int = 42,
-    plot: bool = True
+    plot: bool = True,
 ) -> tuple:
     """
     Run KMeans clustering with StandardScaler preprocessing and optional elbow plot.
@@ -234,15 +243,17 @@ def run_kmeans_elbow(
             km.fit(scaled_data)
             inertia.append(km.inertia_)
 
-        plt.plot(list(k_range), inertia, marker='o')
-        plt.xlabel('Clusters (k)')
-        plt.ylabel('Inertia')
+        plt.plot(list(k_range), inertia, marker="o")
+        plt.xlabel("Clusters (k)")
+        plt.ylabel("Inertia")
         plt.show()
 
     cluster_labels = None
     kmeans_model = None
     if n_clusters is not None:
-        kmeans_model = KMeans(n_clusters=n_clusters, random_state=random_state, n_init=10)
+        kmeans_model = KMeans(
+            n_clusters=n_clusters, random_state=random_state, n_init=10
+        )
         cluster_labels = kmeans_model.fit_predict(scaled_data)
 
     return cluster_labels, scaled_data, kmeans_model
