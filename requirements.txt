@@ -4,5 +4,8 @@ seaborn
 matplotlib
 lxml
 scikit-learn
-numba
 umap-learn
+polars
+
+dask
+pyarrow
