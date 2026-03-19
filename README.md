@@ -1,96 +1,87 @@
-# Carbon Emissions and Economic Development: A Visual Analysis
 
-> **Work in progress** -- this project is actively being developed. New datasets, analyses, and visualizations will be added over time.
+# Decoupling Economic Growth from CO2 Emissions: A Data Analytics Study
 
-## Overview
+### Overview
 
-Can economic growth happen without increasing carbon emissions? This project investigates the **coupling and decoupling** of GDP growth and CO2 emissions across countries, using publicly available data from 1960 to 2024.
+This repository contains a comprehensive data analytics project investigating the historical and contemporary relationship between economic development and environmental impact. Developed as a university-level technical demonstration, the project explores whether nations can achieve "absolute decoupling"—increasing Gross Domestic Product (GDP) while simultaneously reducing territorial CO2 emissions.
 
-By computing per-capita metrics and Pearson correlations over time, countries are classified along a spectrum -- from those where growth and emissions move in lockstep (strong coupling) to those where GDP rises while emissions fall (decoupling). The analysis then examines whether this pattern is systematic across income groups.
+The analysis utilizes a high-performance Polars-led workflow to process large-scale environmental and economic datasets, transitioning to Pandas for specific ingestion tasks and integration with the Python visualization and machine learning ecosystem.
+Research Question
 
-## Key Findings (so far)
+## To what extent has economic growth decoupled from CO2 emissions across different income groups, and what role do energy intensity and electricity mix play in this transition?
 
-- **High-income countries** show the widest spread of GDP-CO2 correlations, with many achieving meaningful decoupling
-- **Lower-income countries** cluster around positive correlations, indicating that growth and emissions still move together
-- Historical emission trajectories follow an **inverted-U pattern** for wealthy nations, consistent with the Environmental Kuznets Curve
-- **Carbon intensity** (CO2 per $1M GDP) has declined across all income groups, but large disparities remain
-- Countries with higher shares of **green electricity** tend to have lower carbon intensity, though notable exceptions exist (e.g., Bermuda, South Sudan)
+This study does not seek to prove definitive causality; rather, it identifies correlations, clusters country archetypes based on developmental profiles, and uses interpretability tools to highlight which features most strongly associate with high carbon intensity.
+
+## Key Analyses & Features
+
+- **Data Orchestration**: Reshaping wide-format GDP data into long-format tidy data and merging heterogeneous sources (CSV, XML, HTML) by country-year identifiers.
+
+- **Mixed Processing Workflow**: Leveraging Polars for memory-efficient joins and transformations, while using Pandas for XML/HTML parsing and matplotlib compatibility.
+
+- **Feature Engineering**: Calculation of per-capita metrics, carbon intensity (CO2 per unit of GDP), and Z-score based outlier detection to identify data anomalies or unique "green growth" stories.
+
+- **Income Group Classification**: Categorizing nations based on GNI per capita sourced from Wikipedia to analyze if decoupling is a luxury of high-income economies.
+
+- **Live Data Ingestion**: Parsing World Bank XML API responses to integrate real-time energy use data.
+
+- **Dimensionality Reduction**: Using UMAP and PCA to visualize how countries cluster geographically and economically in a high-dimensional feature space.
 
 ## Data Sources
 
-| Dataset | Source | Coverage |
-|---|---|---|
-| CO2 Emissions | [Our World in Data](https://ourworldindata.org/co2-emissions) | 1750--2024 (filtered to post-1960) |
-| GDP | [World Bank](https://data.worldbank.org/indicator/NY.GDP.MKTP.CD) | 1960--2024 |
-| Electricity Production | [Our World in Data](https://ourworldindata.org/electricity-mix) | 2000--2024 |
-| GNI per Capita | [Wikipedia / World Bank](https://en.wikipedia.org/wiki/List_of_countries_by_GNI_(nominal)_per_capita) | Latest available year |
+- **Our World in Data (OWID)**: Primary CO2 emissions and electricity production mix datasets.
+
+- **World Bank**: Historical GDP data and Energy Use per capita (via XML API).
+
+- **Wikipedia**: Current GNI per capita tables for income group mapping.
+
+## Tech Stack
+
+- **Data Manipulation**: polars, pandas, numpy, (pyarrow, dask)
+
+- **Visualization**: seaborn, matplotlib
+
+- **Machine Learning & Stats**: scikit-learn, umap-learn, (shaply)
+
+- **Data Ingestion**: lxml, requests
 
 ## Project Structure
 
-```
-carbon_analysis/
 ├── data/
-│   ├── co2_data.csv              # Our World in Data CO2 dataset
-│   └── gdp_data.csv              # World Bank GDP dataset
-├── data_analytics_project.ipynb  # Main analysis notebook
-├── functions.py                  # Helper functions (correlation, normalization)
-├── requirements.txt              # Python dependencies
-└── README.md
-```
+│   ├── co2_data.csv            # CO2 emissions by country and year
+│   └── gdp_data.csv            # GDP (PPP) metrics in wide format
+├── data_analytics_project.ipynb # Main analysis and visualization notebook
+├── functions.py                # Helper scripts for API calls and cleaning
+├── requirements.txt            # Project dependencies
+└── README.md                   # Project documentation
 
-## Analysis Pipeline
+## Installation & Running the Notebook
 
-1. **Data loading & cleaning** -- Select relevant columns, filter out aggregate entities (continents, "World"), align time ranges
-2. **Merging** -- Left join CO2 and GDP data on ISO country code + year; visualize missing data
-3. **Per-capita normalization** -- Compute CO2 per capita and GDP per capita for fair cross-country comparison
-4. **Correlation analysis** -- Pearson r between GDP/capita and CO2/capita per country over time
-5. **Income group classification** -- Assign World Bank income brackets (Low / Lower-Middle / Upper-Middle / High) based on GNI thresholds
-6. **Comparative visualizations** -- Violin plots, bar charts, faceted time series, and dual-axis plots
-7. **Carbon intensity** -- CO2 per $1M GDP to measure economic efficiency
-8. **Electricity mix** -- Green vs. non-green electricity share for the most and least carbon-efficient economies
+- Clone the repository:
 
-## Setup
+    ```bash
+    git clone https://github.com/your-username/carbon_analysis.git
+    cd carbon_analysis
+    ```
 
-### Prerequisites
+- Install dependencies:
+    It is recommended to use a virtual environment.
 
-- Python 3.10+
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-### Installation
+    Launch the analysis:
 
-```bash
-# Clone the repository
-git clone https://github.com/fabianfrank-ai/carbon_analysis
-cd carbon_analysis
+    ```bash
+    jupyter notebook data_analytics_project.ipynb
+    ```
 
-# Create and activate a virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+- Note on Reproducibility: Several sections of the notebook fetch data live from the World Bank API and Wikipedia. An active internet connection is required to execute the notebook in its entirety. If the APIs are unreachable, the notebook is structured to use cached versions where available.
 
-# Install dependencies
-pip install -r requirements.txt
-```
+## Future Improvements
 
-### Running the Analysis
+- Lag-Time Analysis: Implementing time-series cross-correlation to see if GDP growth leads to emissions reductions with a specific year-delay.
 
-Open the Jupyter notebook:
+- Policy Indicators: Integrating qualitative data on national carbon taxes or renewable energy subsidies to see if they correlate with the observed clusters.
 
-```bash
-jupyter notebook data_analytics_project.ipynb
-```
-
-## Dependencies
-
-- pandas
-- numpy
-- seaborn
-- matplotlib
-- lxml
-
-## Roadmap
-
-This project is in its early stages. Planned additions include:
-
-- [ ] Deeper analysis of electricity production and its impact on emissions
-- [ ] Time-series forecasting of emission trends
-- [ ] Regional breakdowns and geographic visualizations
-- [ ] Policy impact analysis (e.g., carbon pricing, Paris Agreement effects)
+- Dashboarding: Converting the static visualizations into an interactive Streamlit dashboard for real-time country comparisons.

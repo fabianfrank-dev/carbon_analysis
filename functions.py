@@ -304,3 +304,17 @@ def run_kmeans_elbow(
         cluster_labels = model.fit_predict(X_used)
 
     return cluster_labels, X_used, model, inertias, scaler
+
+
+def get_top_bottom_n(
+    df: pd.DataFrame,
+    metric_col: str,
+    n: int = 15,
+    ascending: bool = True
+) -> pd.DataFrame:
+    """
+    Return the top or bottom N rows of a DataFrame ranked by a metric column.
+    """
+    if ascending:
+        return df.nsmallest(n, metric_col)
+    return df.nlargest(n, metric_col)
