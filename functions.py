@@ -75,6 +75,7 @@ def safe_divide(numerator: np.ndarray, denominator: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: Result of element-wise division with zeros where denominator is invalid.
     """
+    # convert to numpy arrays
     numerator = np.asarray(numerator, dtype=float)
     denominator = np.asarray(denominator, dtype=float)
     out = np.zeros_like(numerator)
@@ -161,6 +162,7 @@ def plot_dual_axis_timeseries(
     ax2.set_ylabel(y2_label)
     ax2.legend(loc="upper right")
 
+    # check if correlation value is provided and annotate it
     if correlation_value is not None:
         ax1.annotate(
             f"Pearson r: {correlation_value:.2f}",
@@ -169,6 +171,7 @@ def plot_dual_axis_timeseries(
             fontsize=12,
         )
 
+    # check if there are valid rows and set the x-axis limits
     valid_rows = df.drop_nulls(subset=[y1_col, y2_col])
     if not valid_rows.is_empty():
         min_x = valid_rows[x_col].min()
@@ -177,6 +180,7 @@ def plot_dual_axis_timeseries(
         if title is None:
             title = f"{y1_label} vs {y2_label}, {min_x}-{max_x}"
 
+    # set the plot title
     if title:
         plt.title(title)
 
