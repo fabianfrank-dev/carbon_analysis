@@ -6,6 +6,7 @@ lxml
 scikit-learn
 umap-learn
 polars
+shap
 
 dask
 pyarrow
