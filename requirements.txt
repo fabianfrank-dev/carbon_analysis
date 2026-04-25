@@ -6,3 +6,5 @@ lxml
 scikit-learn
 umap-learn
 polars
+shap
+pyarrow
