@@ -115,7 +115,7 @@ carbon_analysis/
 ### Setup
 
 ```bash
-git clone https://github.com/fabianfrank-ai/carbon_analysis
+git clone https://github.com/fabianfrank-dev/carbon_analysis
 cd carbon_analysis
 
 python -m venv venv
@@ -162,3 +162,5 @@ Planned improvements include:
 ## On the usage of AI
 
 I have used AI to help me with this project. AI was used in order to help me understand the data, economic backgrounds and interpret some plots. It was also used to help me with debugging and giving me advice on how to improve my code quality. Furthermore, I have brainstormed with AI to come up with new ideas and approaches to the problem. However, I have always made sure that I understand the code and the reasoning behind it before implementing it. I have also made sure that I am not plagiarizing and that the work is my own.
+In addition to that AI was used in case documentation of certain libraries wasn't clear, for example while migrating my codebase to polars from pandas, due to some functionalities having different names I asked questions like "What is the polars equivalent to melt/dropna/etc" 
+Although the thoughts in the analysis were my own, I also used AI to improve my sentences and be more clear about what I meant.
