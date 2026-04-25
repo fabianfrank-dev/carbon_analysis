@@ -17,27 +17,42 @@ def apply_correlation_to_df(df: pl.DataFrame) -> pl.Series:
     Returns:
         pd.Series: A Series with correlation values for each row based on its country
     """
+    # using try/except to alternate between pandas and polars
+    # if polars is run: return polars/else: run pandas
+    try:
+        # Calculate correlation per country using groupby + transform
+        country_corr = (
+            df.filter(
+                pl.col("gdp_per_capita").is_not_null() &
+                pl.col("co2_per_capita").is_not_null())
+            .group_by("country")
+            .agg([
+                pl.len().alias("n"),
+                pl.corr("gdp_per_capita", "co2_per_capita").alias("correlation")])
+            .with_columns(
+                pl.when(pl.col("n") >= 5)
+                .then(pl.col("correlation"))
+                .otherwise(None)
+                .alias("correlation"))
+            .select(["country", "correlation"]))
 
-    # Calculate correlation per country using groupby + transform
-    country_corr = (
-        df.filter(
-            pl.col("gdp_per_capita").is_not_null() &
-            pl.col("co2_per_capita").is_not_null())
-        .group_by("country")
-        .agg([
-            pl.len().alias("n"),
-            pl.corr("gdp_per_capita", "co2_per_capita").alias("correlation")])
-        .with_columns(
-            pl.when(pl.col("n") >= 5)
-              .then(pl.col("correlation"))
-              .otherwise(None)
-              .alias("correlation"))
-        .select(["country", "correlation"]))
+        return df.join(country_corr, on="country", how="left")
+    except:
+        def calc_corr(group):
+            subset = group[["gdp_per_capita", "co2_per_capita"]].dropna()
+            if len(subset) < 5:
+                return None
+            corr_matrix = np.corrcoef(subset["gdp_per_capita"], subset["co2_per_capita"])
+            return corr_matrix[0, 1]
 
-    return df.join(country_corr, on="country", how="left")
+        # Get unique country correlations
+        country_correlations = df.groupby("country").apply(calc_corr)
+
+        # Map back to original DataFrame index
+        return df["country"].map(country_correlations)
 
 
-def normalize_column(column_name: str) -> pl.Expr:
+def normalize_column(column_name: str, df: pd.DataFrame = None, ) -> pl.Expr:
     """
     Normalize the names in a column of a DataFrame.
 
@@ -47,7 +62,10 @@ def normalize_column(column_name: str) -> pl.Expr:
     Returns:
         pl.Expr: Polars expression for the normalized column
     """
-    return pl.col(column_name).str.strip_chars().str.to_lowercase().alias(f"{column_name}_clean")
+    if df is None:
+        return pl.col(column_name).str.strip_chars().str.to_lowercase().alias(f"{column_name}_clean")
+    else: 
+        return df[column_name].str.lower().str.strip()
 
 
 def z_score_column(df: pl.DataFrame, column_name: str) -> pl.DataFrame:
@@ -80,6 +98,7 @@ def safe_divide(numerator: np.ndarray, denominator: np.ndarray) -> np.ndarray:
     denominator = np.asarray(denominator, dtype=float)
     out = np.zeros_like(numerator)
     mask = denominator > 0
+
     return np.divide(numerator, denominator, out=out, where=mask)
 
 
@@ -100,11 +119,23 @@ def classify_income_group(col: str) -> pl.Expr:
         pl.Expr: Polars expression for the income group.
     """
     # classify countries using World Bank thresholds with numpy vectorized logic
-    return (pl.when(pl.col(col) < 1145).then(pl.lit("Low"))
-        .when(pl.col(col) < 4516).then(pl.lit("Lower-Middle"))
-        .when(pl.col(col) < 14005).then(pl.lit("Upper-Middle"))
-        .otherwise(pl.lit("High"))
-        .alias("income_group"))
+    try:
+        return (pl.when(pl.col(col) < 1145).then(pl.lit("Low"))
+            .when(pl.col(col) < 4516).then(pl.lit("Lower-Middle"))
+            .when(pl.col(col) < 14005).then(pl.lit("Upper-Middle"))
+            .otherwise(pl.lit("High"))
+            .alias("income_group"))
+    except:
+        gdp_pc = col
+        conditions = [
+            gdp_pc < 1_145,
+            (gdp_pc >= 1_145) & (gdp_pc < 4_516),
+            (gdp_pc >= 4_516) & (gdp_pc < 14_005),
+            gdp_pc >= 14_005,
+        ]
+        choices = ["Low", "Lower-Middle", "Upper-Middle", "High"]
+
+        return np.select(conditions, choices, default="Unknown")
 
 
 def compute_energy_mix_shares(
@@ -121,12 +152,21 @@ def compute_energy_mix_shares(
     Returns:
         pl.DataFrame: Copy of the input with 'green_share' and 'non_green_share' columns added.
     """
-    df = df.with_columns([
-        (pl.sum_horizontal(green_cols) / pl.sum_horizontal(green_cols + non_green_cols)).alias("green_share"),
-        (pl.sum_horizontal(non_green_cols) / pl.sum_horizontal(green_cols + non_green_cols)).alias("non_green_share")
-    ])
-    return df
+    try:
+        df = df.with_columns([
+            (pl.sum_horizontal(green_cols) / pl.sum_horizontal(green_cols + non_green_cols)).alias("green_share"),
+            (pl.sum_horizontal(non_green_cols) / pl.sum_horizontal(green_cols + non_green_cols)).alias("non_green_share")
+        ])
+        return df
+    except:
+        green_total = df[green_cols].sum(axis=1)
+        non_green_total = df[non_green_cols].sum(axis=1)
+        total = green_total + non_green_total
 
+        df = df.copy()
+        df["green_share"] = safe_divide(green_total.values, total.values)
+        df["non_green_share"] = safe_divide(non_green_total.values, total.values)
+        return df
 
 def plot_dual_axis_timeseries(
     df: pl.DataFrame,
@@ -169,16 +209,27 @@ def plot_dual_axis_timeseries(
             xy=(0.4, 0.93),
             xycoords="axes fraction",
             fontsize=12,
-        )
+        ) 
 
     # check if there are valid rows and set the x-axis limits
-    valid_rows = df.drop_nulls(subset=[y1_col, y2_col])
-    if not valid_rows.is_empty():
-        min_x = valid_rows[x_col].min()
-        max_x = valid_rows[x_col].max()
-        ax1.set_xlim(min_x, max_x)
-        if title is None:
-            title = f"{y1_label} vs {y2_label}, {min_x}-{max_x}"
+    # also check for pandas or polars
+    try:
+        valid_rows = df.drop_nulls(subset=[y1_col, y2_col])
+        if not valid_rows.is_empty():
+            min_x = valid_rows[x_col].min()
+            max_x = valid_rows[x_col].max()
+            ax1.set_xlim(min_x, max_x)
+            if title is None:
+                title = f"{y1_label} vs {y2_label}, {min_x}-{max_x}"
+
+    except:
+        valid_rows = df.dropna(subset=[y1_col, y2_col])
+        if not valid_rows.empty:
+            min_x = valid_rows[x_col].min()
+            max_x = valid_rows[x_col].max()
+            ax1.set_xlim(min_x, max_x)
+            if title is None:
+                title = f"{y1_label} vs {y2_label}, {min_x}-{max_x}"
 
     # set the plot title
     if title:
