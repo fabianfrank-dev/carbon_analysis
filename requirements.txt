@@ -8,3 +8,5 @@ umap-learn
 polars
 shap
 pyarrow
+requests
+flatten_json

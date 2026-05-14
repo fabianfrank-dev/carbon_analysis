@@ -100,8 +100,20 @@ carbon_analysis/
 ├── data/
 │   ├── co2_data.csv
 │   └── gdp_data.csv
-├── data_analytics_project.ipynb
-├── functions.py
+├── notebooks/
+│   ├── data_analytics_project_pandas.ipynb
+│   ├── data_analytics_project_polars.ipynb
+│   ├── functions.py
+│   ├── pandas/
+│   │   ├── 01_data_prep_and_core_relationships.ipynb
+│   │   ├── 02_income_groups_and_carbon_efficiency.ipynb
+│   │   ├── 03_electricity_mix_and_energy_use.ipynb
+│   │   └── 04_clustering_and_cluster_dynamics.ipynb
+│   └── polars/
+│       ├── 01_data_prep_and_core_relationships.ipynb
+│       ├── 02_income_groups_and_carbon_efficiency.ipynb
+│       ├── 03_electricity_mix_and_energy_use.ipynb
+│       └── 04_clustering_and_dimensionality_reduction.ipynb
 ├── requirements.txt
 └── README.md
 ```
@@ -124,11 +136,18 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## Running the Notebook
+## Running the Notebooks
 
 ```bash
-jupyter notebook data_analytics_project.ipynb
+jupyter notebook notebooks/data_analytics_project_pandas.ipynb
 ```
+
+The two top-level notebooks in `notebooks/` now act as lightweight indexes:
+
+- `notebooks/data_analytics_project_pandas.ipynb`
+- `notebooks/data_analytics_project_polars.ipynb`
+
+From those index notebooks you can open the smaller thematic parts, or open a part directly if you only want one section of the analysis.
 
 ## Reproducibility Notes
 
