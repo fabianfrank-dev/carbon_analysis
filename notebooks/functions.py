@@ -73,9 +73,9 @@ def _table_to_dataframe(table) -> pd.DataFrame:
 
 
 def fetch_wikipedia_gni_table(
-    url: str,
-    user_agent: str = "Mozilla/5.0",
-) -> pd.DataFrame:
+        url: str,
+        user_agent: str = "Mozilla/5.0",
+    ) -> pd.DataFrame:
     """
     Fetch the Wikipedia GNI-per-capita table with requests + BeautifulSoup.
     """
@@ -120,11 +120,23 @@ def fetch_wikipedia_gni_table(
 
 
 def _strip_xml_namespace(tag: str) -> str:
-    """
-    Remove the namespace prefix from an XML tag.
-    """
-    return tag.split("}", 1)[-1]
+    """Strip namespace from XML tag."""
+    return tag.split("}")[-1].split(":")[-1]  
 
+def _clean_scraped_text(text):
+    """Clean and return text, or an empty string if None/empty."""
+    if text is None:
+        return ""
+    return text.strip() if isinstance(text, str) else str(text)
+
+def _parse_optional_number(value):
+    """Parse a string into a float, or return None if empty/NaN."""
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
 
 def fetch_world_bank_xml_records(
     url: str,
@@ -139,27 +151,22 @@ def fetch_world_bank_xml_records(
     root = ET.fromstring(response.content)
     rows = []
 
-    # walk each record node and flatten its children into a dictionary
-    for record in root.iter():
-        if _strip_xml_namespace(record.tag) != "record":
-            continue
-
+    # Iterate over all <ns0:data> elements
+    for record in root.findall(".//{*}data"):  
         row = {}
         for child in record:
             key = _strip_xml_namespace(child.tag)
             row[key] = _clean_scraped_text(child.text)
-
-            # keep ids too in case the text labels change in the future
             if child.attrib.get("id"):
                 row[f"{key}_id"] = child.attrib["id"]
-
         rows.append(row)
 
     xml_df = pd.DataFrame(rows)
     if xml_df.empty:
+        print("Warning: No records found in XML.")
         return xml_df
 
-    # coerce the common numeric fields for easier downstream use
+    # Coerce numeric fields
     if "date" in xml_df.columns:
         xml_df["date"] = pd.to_numeric(xml_df["date"], errors="coerce")
     if "value" in xml_df.columns:
