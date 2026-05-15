@@ -361,6 +361,178 @@ def run_kmeans_elbow(
     return cluster_labels, X_used, model, inertias, scaler
 
 
+def flatten_owid_panel_json(
+    payload: dict,
+    min_year: int | None = None,
+) -> pd.DataFrame:
+    """
+    Flatten the OWID country -> yearly-record JSON structure into a panel DataFrame.
+
+    Args:
+        payload (dict): Raw OWID JSON payload.
+        min_year (int | None): Optional lower year bound.
+
+    Returns:
+        pd.DataFrame: Country-year panel with country metadata repeated on each row.
+    """
+    rows = []
+
+    for country, content in payload.items():
+        if not isinstance(content, dict):
+            continue
+
+        # keep simple country-level metadata and ignore nested objects/lists
+        metadata = {
+            key: value
+            for key, value in content.items()
+            if key != "data" and not isinstance(value, (dict, list))
+        }
+        metadata["country"] = country
+
+        for entry in content.get("data", []):
+            if not isinstance(entry, dict):
+                continue
+
+            # repeat metadata on each yearly row so we get a flat panel
+            row = metadata.copy()
+            row.update(entry)
+            rows.append(row)
+
+    panel_df = pd.DataFrame.from_records(rows)
+    if panel_df.empty:
+        return panel_df
+
+    if "year" in panel_df.columns:
+        # coerce years safely before filtering
+        panel_df["year"] = pd.to_numeric(panel_df["year"], errors="coerce")
+        panel_df = panel_df.dropna(subset=["year"]).copy()
+        panel_df["year"] = panel_df["year"].astype(int)
+
+        if min_year is not None:
+            panel_df = panel_df[panel_df["year"] >= min_year].copy()
+
+    # bring the main identifier columns to the front for readability
+    leading_cols = [col for col in ["country", "iso_code", "year"] if col in panel_df.columns]
+    remaining_cols = [col for col in panel_df.columns if col not in leading_cols]
+    return panel_df[leading_cols + remaining_cols]
+
+
+def prepare_source_trend_table(
+    df: pd.DataFrame,
+    source_cols: list[str],
+    time_col: str = "year",
+    total_col: str = "co2",
+    group_cols: list[str] | None = None,
+) -> pd.DataFrame:
+    """
+    Reshape wide emissions-source columns into a long trend table with source shares.
+
+    Args:
+        df (pd.DataFrame): Panel data containing total CO2 and source columns.
+        source_cols (list[str]): Component emission columns such as coal/oil/gas.
+        time_col (str): Time column to aggregate over.
+        total_col (str): Total emissions column used as denominator for shares.
+        group_cols (list[str] | None): Optional extra grouping columns.
+
+    Returns:
+        pd.DataFrame: Long-format source table with aggregated source totals and shares.
+    """
+    group_cols = group_cols or []
+    available_source_cols = [col for col in source_cols if col in df.columns]
+
+    if not available_source_cols:
+        raise ValueError("None of the requested source columns were found in the DataFrame.")
+
+    base_cols = [time_col, total_col] + group_cols
+    source_df = df[base_cols + available_source_cols].copy()
+
+    # convert the source columns to numeric before reshaping
+    numeric_cols = [total_col] + available_source_cols
+    for column in numeric_cols:
+        source_df[column] = pd.to_numeric(source_df[column], errors="coerce")
+
+    # reshape from wide source columns to a tidy long table
+    melted = source_df.melt(
+        id_vars=base_cols,
+        value_vars=available_source_cols,
+        var_name="source",
+        value_name="source_co2",
+    ).dropna(subset=["source_co2", total_col])
+
+    aggregation_cols = group_cols + [time_col, "source"]
+    # aggregate source totals and compare them to total CO2 in the same period
+    trend_df = melted.groupby(aggregation_cols, as_index=False).agg(
+        source_co2=("source_co2", "sum"),
+        total_co2=(total_col, "sum"),
+    )
+    trend_df["source_share"] = safe_divide(
+        trend_df["source_co2"].to_numpy(),
+        trend_df["total_co2"].to_numpy(),
+    )
+
+    source_labels = {
+        col: col.removesuffix("_co2").replace("_", " ").title()
+        for col in available_source_cols
+    }
+    # keep the original source ordering for nicer plots later
+    trend_df["source_label"] = pd.Categorical(
+        trend_df["source"].map(source_labels),
+        categories=[source_labels[col] for col in available_source_cols],
+        ordered=True,
+    )
+
+    return trend_df.sort_values(aggregation_cols).reset_index(drop=True)
+
+
+def compute_group_concentration(
+    df: pd.DataFrame,
+    period_col: str,
+    entity_col: str,
+    value_col: str,
+    top_n: int = 3,
+) -> pd.DataFrame:
+    """
+    Compute concentration metrics such as HHI and top-N share within each period.
+
+    Args:
+        df (pd.DataFrame): Input panel data.
+        period_col (str): Column defining the time period.
+        entity_col (str): Column identifying entities within each period.
+        value_col (str): Numeric column used to compute concentration.
+        top_n (int): Number of leading entities to include in the top-share metric.
+
+    Returns:
+        pd.DataFrame: Period-level totals, HHI, effective entity count, and top-N share.
+    """
+    concentration_df = df[[period_col, entity_col, value_col]].copy()
+    # make sure the concentration metric only uses valid numeric rows
+    concentration_df[value_col] = pd.to_numeric(concentration_df[value_col], errors="coerce")
+    concentration_df = concentration_df.dropna(subset=[period_col, entity_col, value_col])
+    concentration_df = concentration_df[concentration_df[value_col] > 0].copy()
+
+    # compute each entity's share inside its year/group
+    concentration_df["group_total"] = concentration_df.groupby(period_col)[value_col].transform("sum")
+    concentration_df["share"] = safe_divide(
+        concentration_df[value_col].to_numpy(),
+        concentration_df["group_total"].to_numpy(),
+    )
+
+    # HHI captures overall concentration, while top_n_share keeps it intuitive
+    summary_df = concentration_df.groupby(period_col, as_index=False).agg(
+        total_value=(value_col, "sum"),
+        entity_count=(entity_col, "nunique"),
+        hhi=("share", lambda shares: np.square(shares).sum()),
+        top_n_share=("share", lambda shares: shares.nlargest(top_n).sum()),
+    )
+    # effective entity count is the inverse HHI interpretation
+    summary_df["effective_entity_count"] = safe_divide(
+        np.ones(len(summary_df)),
+        summary_df["hhi"].to_numpy(),
+    )
+
+    return summary_df.sort_values(period_col).reset_index(drop=True)
+
+
 def get_top_bottom_n(
     df: pd.DataFrame,
     metric_col: str,
