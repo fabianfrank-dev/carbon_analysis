@@ -89,7 +89,7 @@ This project is designed to showcase practical data-analysis skills in Python. D
 - **NumPy** for numeric operations and derived metrics
 - **Matplotlib / Seaborn** for visual analysis
 - **scikit-learn** for scaling, clustering, and exploratory ML-style preprocessing
-- **lxml / pandas XML or HTML readers** for external data ingestion
+- **BeautifulSoup / ElementTree / requests** for more explicit HTML and XML ingestion
 
 The focus is less on model performance and more on analytical clarity, data preparation, and interpretable structure in the data.
 

@@ -2,8 +2,164 @@ import pandas as pd
 import polars as pl
 import numpy as np
 import matplotlib.pyplot as plt
+import re
+import requests
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
+from bs4 import BeautifulSoup
+from xml.etree import ElementTree as ET
+
+
+def _clean_scraped_text(value: str | None) -> str:
+    """
+    Normalize scraped text by removing reference markers and extra whitespace.
+    """
+    if value is None:
+        return ""
+
+    # replace nbsp and strip citation markers like [1]
+    cleaned = value.replace("\xa0", " ")
+    cleaned = re.sub(r"\[\d+\]", "", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    return cleaned.strip()
+
+
+def _parse_optional_number(value: str | None) -> float:
+    """
+    Parse a scraped numeric string, returning NaN when no number is available.
+    """
+    cleaned = _clean_scraped_text(value)
+    if cleaned in {"", "-", "—", "..", "No data"}:
+        return np.nan
+
+    # keep only the first numeric chunk so notes in the cell do not break parsing
+    match = re.search(r"-?\d[\d,]*\.?\d*", cleaned.replace("$", ""))
+    if match is None:
+        return np.nan
+
+    return float(match.group(0).replace(",", ""))
+
+
+def _table_to_dataframe(table) -> pd.DataFrame:
+    """
+    Convert an HTML table element to a pandas DataFrame using BeautifulSoup only.
+    """
+    thead = table.find("thead")
+    tbody = table.find("tbody")
+
+    # prefer the explicit header row when the html provides one
+    header_row = thead.find_all("tr")[-1] if thead and thead.find_all("tr") else table.find("tr")
+    header_cells = header_row.find_all(["th", "td"]) if header_row else []
+    headers = [_clean_scraped_text(cell.get_text(" ", strip=True)) for cell in header_cells]
+
+    rows = []
+    body_rows = tbody.find_all("tr") if tbody else table.find_all("tr")[1:]
+    for row in body_rows:
+        cells = row.find_all(["th", "td"])
+        values = [_clean_scraped_text(cell.get_text(" ", strip=True)) for cell in cells]
+
+        if not values:
+            continue
+
+        # pad or trim so odd wikipedia rows still fit the header width
+        if len(values) < len(headers):
+            values = values + [None] * (len(headers) - len(values))
+        elif len(values) > len(headers):
+            values = values[:len(headers)]
+
+        rows.append(values)
+
+    return pd.DataFrame(rows, columns=headers)
+
+
+def fetch_wikipedia_gni_table(
+    url: str,
+    user_agent: str = "Mozilla/5.0",
+) -> pd.DataFrame:
+    """
+    Fetch the Wikipedia GNI-per-capita table with requests + BeautifulSoup.
+    """
+    response = requests.get(url, headers={"User-Agent": user_agent}, timeout=30)
+    response.raise_for_status()
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # wikipedia can have multiple tables, so find the one with the expected headers
+    for table in soup.select("table.wikitable"):
+        header_text = [
+            _clean_scraped_text(cell.get_text(" ", strip=True)).lower()
+            for cell in table.find_all("th")
+        ]
+        has_country = any(text == "country" for text in header_text)
+        has_gni = any("gni per capita" in text for text in header_text)
+
+        if not (has_country and has_gni):
+            continue
+
+        gni_df = _table_to_dataframe(table)
+
+        # standardize the key columns so the notebooks can merge safely
+        country_col = next((col for col in gni_df.columns if col.lower() == "country"), None)
+        gni_col = next((col for col in gni_df.columns if "gni per capita" in col.lower()), None)
+        if country_col is None or gni_col is None:
+            continue
+
+        gni_df = gni_df.rename(columns={country_col: "Country", gni_col: "gni_per_capita"})
+        gni_df["Country"] = gni_df["Country"].map(_clean_scraped_text)
+        gni_df["gni_per_capita"] = gni_df["gni_per_capita"].map(_parse_optional_number)
+
+        return gni_df
+
+    raise ValueError("Could not find the GNI per capita table on the page.")
+
+
+def _strip_xml_namespace(tag: str) -> str:
+    """
+    Remove the namespace prefix from an XML tag.
+    """
+    return tag.split("}", 1)[-1]
+
+
+def fetch_world_bank_xml_records(
+    url: str,
+    user_agent: str = "Mozilla/5.0",
+) -> pd.DataFrame:
+    """
+    Fetch and flatten a World Bank XML response with ElementTree.
+    """
+    response = requests.get(url, headers={"User-Agent": user_agent}, timeout=30)
+    response.raise_for_status()
+
+    root = ET.fromstring(response.content)
+    rows = []
+
+    # walk each record node and flatten its children into a dictionary
+    for record in root.iter():
+        if _strip_xml_namespace(record.tag) != "record":
+            continue
+
+        row = {}
+        for child in record:
+            key = _strip_xml_namespace(child.tag)
+            row[key] = _clean_scraped_text(child.text)
+
+            # keep ids too in case the text labels change in the future
+            if child.attrib.get("id"):
+                row[f"{key}_id"] = child.attrib["id"]
+
+        rows.append(row)
+
+    xml_df = pd.DataFrame(rows)
+    if xml_df.empty:
+        return xml_df
+
+    # coerce the common numeric fields for easier downstream use
+    if "date" in xml_df.columns:
+        xml_df["date"] = pd.to_numeric(xml_df["date"], errors="coerce")
+    if "value" in xml_df.columns:
+        xml_df["value"] = xml_df["value"].map(_parse_optional_number)
+
+    return xml_df
 
 
 def apply_correlation_to_df(df: pl.DataFrame) -> pl.Series:
