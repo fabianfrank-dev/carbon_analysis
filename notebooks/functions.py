@@ -108,6 +108,12 @@ def fetch_wikipedia_gni_table(
         gni_df["Country"] = gni_df["Country"].map(_clean_scraped_text)
         gni_df["gni_per_capita"] = gni_df["gni_per_capita"].map(_parse_optional_number)
 
+        # drop repeated header rows or section labels that sometimes appear in wikipedia tables
+        gni_df = gni_df[gni_df["Country"].str.lower() != "country"].copy()
+        gni_df = gni_df[gni_df["Country"] != ""].copy()
+        gni_df = gni_df[gni_df["gni_per_capita"].notna()].reset_index(drop=True)
+        gni_df = gni_df[["Country", "gni_per_capita"]].copy()
+
         return gni_df
 
     raise ValueError("Could not find the GNI per capita table on the page.")
