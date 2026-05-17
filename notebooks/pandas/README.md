@@ -6,3 +6,4 @@ These notebooks are the smaller pandas-focused analysis parts. Each notebook rep
 - `02_income_groups_and_carbon_efficiency.ipynb`: income groups, efficiency, outliers, recent improvers
 - `03_electricity_mix_and_energy_use.ipynb`: electricity shares and energy-use analysis
 - `04_clustering_and_cluster_dynamics.ipynb`: clustering, dimensionality reduction, and cluster follow-up analysis
+- `05_summary_and_key_findings.ipynb`: consolidated summary with key findings and visualizations from all notebooks
