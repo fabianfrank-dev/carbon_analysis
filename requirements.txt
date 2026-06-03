@@ -11,3 +11,4 @@ pyarrow
 requests
 flatten_json
 beautifulsoup4
+jupyter

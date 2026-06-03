@@ -1,97 +1,58 @@
 # Carbon Emissions and Economic Development
 
-> Work in progress. This repository is being developed as a university data analytics project focused on clear data handling, thoughtful visualization, and methodical analysis.
+Data Analytics course project analyzing whether countries can grow economically while reducing carbon intensity or weakening the link between GDP growth and CO2 emissions.
 
-## Overview
+## Submission Guide
 
-This project examines whether economic growth can occur without a proportional increase in carbon emissions. More specifically, it studies the relationship between **GDP development**, **CO2 emissions**, and **energy structure** across countries over time.
+The recommended grading path is the pandas version:
 
-The notebook combines multiple public datasets, reshapes and merges them at the country-year level, engineers per-capita and efficiency metrics, and then explores whether countries appear to remain tightly coupled to emissions growth or show signs of relative decoupling.
+1. Open `notebooks/pandas/05_summary_and_key_findings.ipynb` for the consolidated story, plots, and final interpretation.
+2. Open the four supporting pandas notebooks for the full workflow:
+   - `notebooks/pandas/01_data_prep_and_core_relationships.ipynb`
+   - `notebooks/pandas/02_income_groups_and_carbon_efficiency.ipynb`
+   - `notebooks/pandas/03_electricity_mix_and_energy_use.ipynb`
+   - `notebooks/pandas/04_clustering_and_cluster_dynamics.ipynb`
+3. Treat the polars notebooks as an alternative implementation / extension of the same analysis.
 
-The project is exploratory rather than causal: the goal is to identify patterns, contrasts, and analytically useful country groupings, not to claim that any one factor alone explains national emission outcomes.
+The summary notebook is intentionally the main submission artifact because it can be reviewed quickly while still showing the main data preparation, feature engineering, visualizations, clustering, and conclusions.
 
 ## Research Question
 
-The central question is:
-
 **Can countries grow economically while reducing their carbon intensity or weakening the link between GDP growth and CO2 emissions?**
 
-This question is explored through:
+The project answers this through exploratory analysis rather than causal inference. It identifies patterns across countries and income groups, but it does not claim that any single variable fully explains national emissions outcomes.
 
-- country-level GDP-CO2 correlation analysis
-- per-capita normalization
-- income-group comparisons
-- carbon-intensity trends
-- electricity-mix comparisons
-- selected clustering and dimensionality-reduction analyses
+## Analytical Workflow
 
-## Current Scope
+The project demonstrates a full data analytics workflow:
 
-The notebook currently demonstrates the following workflow:
+1. **Data loading and cleaning**: CO2 and GDP data are loaded from local CSV files and filtered to country-year observations.
+2. **Reshaping and merging**: World Bank GDP data is reshaped from wide to long format and merged with emissions data using ISO country codes and years.
+3. **Feature engineering**: Per-capita and efficiency metrics are created, including `co2_per_capita`, `gdp_per_capita`, and `co2_per_gdp`.
+4. **Missing-data inspection**: Missingness is visualized and summarized after the merge.
+5. **Relationship analysis**: GDP per capita and CO2 per capita are compared over time using country-level Pearson correlations.
+6. **Income-group comparison**: Countries are grouped by income level to compare emissions trajectories and carbon efficiency.
+7. **Energy-structure analysis**: Electricity mix and energy-use measures are integrated to inspect whether cleaner energy shares align with lower carbon intensity.
+8. **Unsupervised learning**: KMeans clustering, PCA, and UMAP-style dimensionality reduction are used to explore country archetypes.
+9. **Interpretation**: Results are summarized with limitations and policy-relevant insights.
 
-1. **Data loading and cleaning**
-   CO2 and GDP data are loaded, reduced to relevant columns, and cleaned to remove aggregate entities and unusable rows.
+## Key Findings
 
-2. **Reshaping and merging**
-   GDP data is transformed from wide to long format, then merged with emissions data using ISO country codes and years.
-
-3. **Feature engineering**
-   The analysis constructs `co2_per_capita`, `gdp_per_capita`, and `co2_per_gdp` to make countries more comparable across population size and economic scale.
-
-4. **Missing-data inspection**
-   Missing values are visualized and summarized after merging to make data quality issues explicit rather than implicit.
-
-5. **Correlation analysis**
-   GDP per capita and CO2 per capita are compared over time at the country level using Pearson correlation.
-
-6. **Income-group classification**
-   Countries are assigned to income groups using available GNI-per-capita data and then compared across key climate-economic metrics.
-
-7. **Comparative visualization**
-   The project includes violin plots, faceted time series, dual-axis plots, bar charts, and scatter-style comparative views.
-
-8. **Carbon-intensity analysis**
-   CO2 per GDP is used as an emissions-efficiency measure, both across time and for ranking countries in recent years.
-
-9. **Energy-structure analysis**
-   Electricity-source data is used to compare green and non-green energy shares with carbon intensity.
-
-10. **Extended exploratory analysis**
-    Additional sections include z-score style outlier analysis, clustering of country profiles, and dimensionality reduction to inspect broader country archetypes.
-
-## Key Findings So Far
-
-The current notebook suggests several recurring patterns:
-
-- **High-income countries** show the widest spread of GDP-CO2 correlations, including more cases consistent with decoupling.
-- **Lower-income countries** are more concentrated around positive correlations, indicating that growth and emissions often still move together.
-- **Carbon intensity** tends to decline over time across income groups, although the speed and level of improvement differ substantially.
-- **Electricity mix matters**, but it does not fully explain efficiency differences on its own.
-- Some countries behave as clear **outliers**, which makes anomaly detection and clustering analytically useful.
-
-These findings should be read as exploratory patterns rather than final conclusions.
+- High-income countries show the widest range of GDP-CO2 relationships, including more cases consistent with relative decoupling.
+- Lower-income countries more often show positive GDP-CO2 relationships, suggesting that growth and emissions remain more tightly linked.
+- Carbon intensity generally declines over time, but the speed and starting point differ substantially across income groups.
+- Electricity mix matters, but it does not fully explain differences in carbon efficiency by itself.
+- Clustering reveals country archetypes that combine economic scale, emissions intensity, energy structure, and outlier behavior.
 
 ## Data Sources
 
-| Dataset | Source | Coverage / Use |
+| Dataset | Source | Use |
 |---|---|---|
-| CO2 emissions | [Our World in Data](https://ourworldindata.org/co2-emissions) | Main emissions data, filtered to modern country-year observations |
-| GDP | [World Bank](https://data.worldbank.org/indicator/NY.GDP.MKTP.CD) | National GDP, reshaped from wide to long format |
-| Electricity production / mix | [Our World in Data](https://ourworldindata.org/electricity-mix) | Used to derive green and non-green electricity shares |
-| GNI per capita | [Wikipedia / World Bank thresholds](https://en.wikipedia.org/wiki/List_of_countries_by_GNI_(nominal)_per_capita) | Used for income-group assignment |
-| Energy use per capita | World Bank XML API | Used in the extended exploratory energy-use section |
-
-## Tech Stack
-
-This project is designed to showcase practical data-analysis skills in Python. Depending on the current notebook version, the workflow may combine:
-
-- **Pandas / Polars** for tabular wrangling and reshaping
-- **NumPy** for numeric operations and derived metrics
-- **Matplotlib / Seaborn** for visual analysis
-- **scikit-learn** for scaling, clustering, and exploratory ML-style preprocessing
-- **BeautifulSoup / ElementTree / requests** for more explicit HTML and XML ingestion
-
-The focus is less on model performance and more on analytical clarity, data preparation, and interpretable structure in the data.
+| CO2 emissions | [Our World in Data](https://ourworldindata.org/co2-emissions) | Main emissions panel and population values |
+| GDP | [World Bank](https://data.worldbank.org/indicator/NY.GDP.MKTP.CD) | National GDP values reshaped from wide to long format |
+| Electricity production / mix | [Our World in Data](https://ourworldindata.org/electricity-mix) | Green and non-green electricity share analysis |
+| GNI per capita | Wikipedia table based on World Bank-style reporting | Income-group assignment for comparison |
+| Energy use per capita | World Bank XML API | Energy-use extension section |
 
 ## Project Structure
 
@@ -101,85 +62,63 @@ carbon_analysis/
 │   ├── co2_data.csv
 │   └── gdp_data.csv
 ├── notebooks/
-│   ├── data_analytics_project_pandas.ipynb
-│   ├── data_analytics_project_polars.ipynb
 │   ├── functions.py
 │   ├── pandas/
 │   │   ├── 01_data_prep_and_core_relationships.ipynb
 │   │   ├── 02_income_groups_and_carbon_efficiency.ipynb
 │   │   ├── 03_electricity_mix_and_energy_use.ipynb
-│   │   └── 04_clustering_and_cluster_dynamics.ipynb
+│   │   ├── 04_clustering_and_cluster_dynamics.ipynb
+│   │   ├── 05_summary_and_key_findings.ipynb
+│   │   └── README.md
 │   └── polars/
 │       ├── 01_data_prep_and_core_relationships.ipynb
 │       ├── 02_income_groups_and_carbon_efficiency.ipynb
 │       ├── 03_electricity_mix_and_energy_use.ipynb
-│       └── 04_clustering_and_dimensionality_reduction.ipynb
+│       ├── 04_clustering_and_dimensionality_reduction.ipynb
+│       └── README.md
 ├── requirements.txt
 └── README.md
 ```
 
-## Installation
+## Setup
 
-### Prerequisites
-
-- Python 3.10+
-
-### Setup
+Use Python 3.10 or newer.
 
 ```bash
-git clone https://github.com/fabianfrank-dev/carbon_analysis
-cd carbon_analysis
-
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+jupyter notebook notebooks/pandas/05_summary_and_key_findings.ipynb
 ```
 
-## Running the Notebooks
+On Windows, activate the environment with:
 
 ```bash
-jupyter notebook notebooks/data_analytics_project_pandas.ipynb
+.venv\Scripts\activate
 ```
-
-The two top-level notebooks in `notebooks/` now act as lightweight indexes:
-
-- `notebooks/data_analytics_project_pandas.ipynb`
-- `notebooks/data_analytics_project_polars.ipynb`
-
-From those index notebooks you can open the smaller thematic parts, or open a part directly if you only want one section of the analysis.
 
 ## Reproducibility Notes
 
-- Some notebook sections rely on **live external data fetching** such as Wikipedia tables, Our World in Data CSV endpoints, or World Bank API responses.
-- Because of that, **internet access may be required** to run the full notebook end to end.
-- External tables or APIs may change structure over time, so some ingestion steps may need small adjustments in the future.
-- Income groups are assigned using the available GNI-per-capita source used in the notebook; this is useful for comparison, but should not be interpreted as a perfect historical classification for every year in the panel.
+- The summary notebook and early data-preparation sections run from the local files in `data/`.
+- Some supporting notebooks fetch live external data from Wikipedia, Our World in Data, and the World Bank API.
+- Internet access is therefore required for the full extended workflow.
+- External web tables and APIs can change structure over time; if that happens, the local CSV-based summary remains the most stable submission artifact.
+- Income groups are assigned from currently available country-level income information, so they should be interpreted as a practical comparison framework rather than a perfect historical classification.
 
-## Why This Project Fits Data Analytics
+## Why This Fits Data Analytics
 
-This repository is intended to demonstrate:
+This project demonstrates:
 
-- multi-source dataset handling
-- reshaping and merging on composite keys
-- groupby-based transformation and aggregation
+- multi-source data handling
+- wide-to-long reshaping
+- country-year panel merging
+- missing-data inspection
 - feature engineering for comparability
-- visual communication of quantitative patterns
-- exploratory clustering and preprocessing workflows
-- careful interpretation of real-world, imperfect data
+- visual analysis and interpretation
+- grouped aggregation and ranking
+- unsupervised clustering and dimensionality reduction
+- careful limitations around exploratory analysis
 
-## Next Steps
+## AI Use Disclosure
 
-Planned improvements include:
-
-- strengthening the missing-data and preprocessing section
-- improving documentation of the more advanced exploratory analyses
-- refining the clustering / dimensionality-reduction interpretation
-- expanding reproducibility and dependency documentation
-- polishing the notebook narrative for professor review
-
-## On the usage of AI
-
-I have used AI to help me with this project. AI was used in order to help me understand the data, economic backgrounds and interpret some plots. It was also used to help me with debugging and giving me advice on how to improve my code quality. Furthermore, I have brainstormed with AI to come up with new ideas and approaches to the problem. However, I have always made sure that I understand the code and the reasoning behind it before implementing it. I have also made sure that I am not plagiarizing and that the work is my own.
-In addition to that AI was used in case documentation of certain libraries wasn't clear, for example while migrating my codebase to polars from pandas, due to some functionalities having different names I asked questions like "What is the polars equivalent to melt/dropna/etc" 
-Although the thoughts in the analysis were my own, I also used AI to improve my sentences and be more clear about what I meant.
+AI assistance was used for brainstorming, debugging, code-quality feedback, library usage questions, and improving explanatory wording. The analysis choices, implementation review, interpretation, and final submission decisions were checked by the author, and the work is presented as the author's own course project.

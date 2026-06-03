@@ -123,13 +123,13 @@ def _strip_xml_namespace(tag: str) -> str:
     """Strip namespace from XML tag."""
     return tag.split("}")[-1].split(":")[-1]  
 
-def _clean_scraped_text(text):
+def _clean_xml_text(text):
     """Clean and return text, or an empty string if None/empty."""
     if text is None:
         return ""
     return text.strip() if isinstance(text, str) else str(text)
 
-def _parse_optional_number(value):
+def _parse_xml_number(value):
     """Parse a string into a float, or return None if empty/NaN."""
     if value is None or value == "":
         return None
@@ -156,7 +156,7 @@ def fetch_world_bank_xml_records(
         row = {}
         for child in record:
             key = _strip_xml_namespace(child.tag)
-            row[key] = _clean_scraped_text(child.text)
+            row[key] = _clean_xml_text(child.text)
             if child.attrib.get("id"):
                 row[f"{key}_id"] = child.attrib["id"]
         rows.append(row)
@@ -170,7 +170,7 @@ def fetch_world_bank_xml_records(
     if "date" in xml_df.columns:
         xml_df["date"] = pd.to_numeric(xml_df["date"], errors="coerce")
     if "value" in xml_df.columns:
-        xml_df["value"] = xml_df["value"].map(_parse_optional_number)
+        xml_df["value"] = xml_df["value"].map(_parse_xml_number)
 
     return xml_df
 
